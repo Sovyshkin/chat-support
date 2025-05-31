@@ -48,7 +48,6 @@ export default defineNitroPlugin(async (nitroApp: NitroApp) => {
 
   io.bind(engine);
 
-
   io.on("connection", async (socket) => {
     socket.on('logined', async (data) => {
       clients.set(data.name, socket.id)

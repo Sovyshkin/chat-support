@@ -12,7 +12,6 @@ export default defineEventHandler(async (event) => {
       ],
     }).sort({ createdAt: 1 });
 
-    console.log(messages);
     
     return messages;
   } catch (e) {

@@ -21,7 +21,6 @@ const handleEnter = (event) => {
 const scrollToBottom = () => {
   nextTick(() => {
     if (messagesContainer.value) {
-      console.log(messagesContainer.value);
       messagesContainer.value.scrollTo({
         top: messagesContainer.value.scrollHeight,
         behavior: "smooth",
@@ -33,10 +32,8 @@ const scrollToBottom = () => {
 watch(
     () => chatStore.messages,
     () => {
-      // console.log('новое сообщение');
       chatStore.isLoading = false
       scrollToBottom();
-      // toast.add({ title: 'новое сообщение' })
     },
     { deep: true, immediate: true }
 );
