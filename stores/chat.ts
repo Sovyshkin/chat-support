@@ -13,25 +13,89 @@ export const useChatStore = defineStore(
     const userID = ref("");
     const chatLoader = ref(false);
     const messages = ref([]);
-    const chats = ref([])
-    const clients = ref([])
-    const selectedChat = ref("")
-    let online = []
-    const notification = ref(false)
+    const chats = ref([]);
+    const clients = ref([]);
+    const selectedChat = ref("");
+    const chat = ref(null);
+    let online = [];
+    const notification = ref(false);
+    const replyId = ref(null)
+    const users = ref([])
+    const files = ref([])
+    const showChats = ref(false)
+    const showChatsPred = ref(true)
 
     const addMessage = async () => {
       try {
         chatLoader.value = true;
-        username.value = auth.user.name;
+        userID.value = auth.user._id;
+        console.log(files.value);
+        
+        // Если есть файлы для загрузки
+        if (files.value && files.value.length > 0) {
+          const formData = new FormData();
+          
+          // Добавляем все файлы в FormData
+          files.value.forEach(file => {
+            formData.append('files', file);
+          });
+    
+          // Добавляем метаданные сообщения
+          formData.append('text', content.value);
+          formData.append('senderId', userID.value);
+          formData.append('senderName', auth.user.name);
+          formData.append('chatId', chat.value._id);
+          formData.append('userId1', auth.user._id);
+          formData.append('userId2', selectedChat.value._id);
+          formData.append('replyId', replyId.value || '');
+          formData.append('type', chat.value.type);
+
+          let response = await $fetch('/api/messages/files', {
+            method: "POST",
+            body: formData
+          })
+          
+          
+          if (socket.value) {
+            socket.value.emit("new message with files", formData);
+          }
+        } else {
+          // Обычное текстовое сообщение
+          if (socket.value) {
+            socket.value.emit("new message", {
+              text: content.value,
+              senderId: userID.value,
+              senderName: auth.user.name,
+              chatId: chat.value._id,
+              userId1: auth.user._id,
+              userId2: selectedChat.value._id,
+              replyId: replyId.value,
+              type: chat.value.type
+            });
+          }
+        }
+        content.value = "";
+        replyId.value = null;
+        files.value = [];
+    
+      } catch (err) {
+        console.error("Ошибка при отправке сообщения:", err);
+      } finally {
+        chatLoader.value = false;
+      }
+    };
+
+    const deleteMessage = async (messageId) => {
+      try {
+        chatLoader.value = true;
         userID.value = auth.user._id;
         if (socket.value) {
-          socket.value.emit("new message", {
-            content: content.value,
-            sender: username.value || auth.user.email,
-            userID: userID.value,
-            receiver: selectedChat.value
+          socket.value.emit("delete message", {
+            messageId,
+            userId1: auth.user._id,
+            userId2: selectedChat.value._id,
+            chatId: chat.value._id
           });
-          content.value = ''
         }
       } catch (err) {
         console.log(err);
@@ -40,48 +104,78 @@ export const useChatStore = defineStore(
       }
     };
 
+    const createGroup = async (data) => {
+      try {
+        if (socket.value) {
+          let members = data.members
+          members.push(auth.user._id)
+          socket.value.emit("create group", {
+            title: data.title,
+            members: members, 
+            creatorId: auth.user._id
+          });
+        }
+      } catch (error) {
+        console.error('Ошибка при создании группы:', error)
+        throw error
+      }
+    }
+
+    const goCreateGroup = async () => {
+      try {
+        isLoading.value = true
+        users.value = await $fetch(`api/users/get?id=${auth.user._id}`)
+      } catch (err) {
+        console.log(err);
+      } finally {
+        isLoading.value = false
+      }
+    }
+
     const connect = () => {
       if (process.client) {
         userID.value = auth.user._id;
 
         socket.value = io("ws://localhost:3000");
 
-        socket.value.emit('logined', {
-          name: auth.user.name,
-          receiver: selectedChat.value,
-        })
+        socket.value.emit("logined", {
+          userId1: auth.user._id,
+          userId2: selectedChat.value._id,
+          type: selectedChat.value.type
+        });
 
         socket.value.on("messages", (data) => {
           messages.value = data;
-          if (data.length > 0) {
-            empty.value = false
+          if (data) {
+            empty.value = false;
           }
         });
 
-        socket.value.on('chats', (data) => {
-          clients.value = data || []
-          // console.log(online.value);
-        })
-        socket.value.on('online', (data) => {
-          online = data || []
+        socket.value.on("chats", (data) => {
+          clients.value = data || [];
+        });
+        socket.value.on("online", (data) => {
+          online = data || [];
+          
           online.forEach((item) => {
             for (let client of clients.value) {
-              if (item == client.name) {
-                client.online = true
+              
+              if (item == client._id) {
+                client.online = true;
               }
             }
-          })
+          });
 
           // console.log(online.value);
-        })
+        });
 
-        socket.value.on('notification', (name) => {
+        socket.value.on("notification", (id) => {
           for (let client of clients.value) {
-            if (client.name == name) {
-              client.notification = true
+            if (client._id == id) {
+              client.notification = true;
             }
           }
-        })
+        });
       }
     };
 
@@ -92,21 +186,39 @@ export const useChatStore = defineStore(
       }
     };
 
-    const openChat = async (username, id) => {
+    const openChat = async (userChat) => {
       try {
-        selectedChat.value = username
-        messages.value = await $fetch('/api/messages/chat', {
-          method: 'POST',
+        selectedChat.value = userChat;
+        showChats.value = false
+        showChatsPred.value = false
+        let response = await $fetch("/api/chat/messages", {
+          method: "POST",
           body: {
-            sender: auth.user.name,
-            receiver: username
+            userId1: auth.user._id,
+            userId2: userChat._id,
+            type: userChat.type
+          },
+        });
+        chat.value = response.chat;
+        messages.value = response.messages;
+        clients.value = clients.value.map(client => {
+          if (client._id === selectedChat.value._id) {
+            return { ...client, notification: false }; // Создаём новый объект
           }
-        })
-        for (let client of clients.value) {
-          if (client._id = id) {
-            client.notification = false
-          }
-        }
+          return client;
+        });
+      } catch (err) {
+        console.log(err);
+      }
+    };
+
+    const openAllChats = () => {
+      try {
+        showChatsPred.value = true
+        setTimeout(() => {
+          showChats.value = true
+          showChatsPred.value = false
+        }, 300)
       } catch (err) {
         console.log(err);
         
@@ -115,18 +227,27 @@ export const useChatStore = defineStore(
 
     const checkOnline = (name) => {
       try {
-        return online.includes(name)
+        return online.includes(name);
       } catch (err) {
         console.log(err);
-        
       }
-    }
+    };
+
     return {
+      showChats,
+      showChatsPred,
+      files,
+      goCreateGroup,
+      users,
+      createGroup,
+      replyId,
+      deleteMessage,
+      chat,
       checkOnline,
       selectedChat,
       openChat,
       clients,
-        chats,
+      chats,
       isLoading,
       chatLoader,
       empty,
@@ -136,7 +257,8 @@ export const useChatStore = defineStore(
       connect,
       disconnect,
       userID,
-      notification
+      notification,
+      openAllChats
     };
   },
   { persist: true }

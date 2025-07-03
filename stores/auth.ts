@@ -1,4 +1,6 @@
 import { defineStore } from "pinia";
+import bcrypt from 'bcryptjs'
+
 
 export const useAuthStore = defineStore(
   "auth",
@@ -18,7 +20,15 @@ export const useAuthStore = defineStore(
     const tokenYa = ref('')
     const userID = ref('')
 
+    // Хеширование пароля
+    const hashPassword = async (password) => {
+      const salt = await bcrypt.genSalt(10)
+      return await bcrypt.hash(password, salt)
+    }
+    
+
     const login = async () => {
+      password.value = await hashPassword(password.value)
       user.value = await $fetch("/api/users/login", {
         method: "post",
         body: {
@@ -27,7 +37,7 @@ export const useAuthStore = defineStore(
         },
       });
       console.log(user.value);
-
+      password.value = ''
       if (user.value) {
         isAuthenticated.value = true;
         await navigateTo("/chat");

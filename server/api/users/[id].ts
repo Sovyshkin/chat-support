@@ -6,7 +6,7 @@ export default defineEventHandler(async (event) => {
     const id = getRouterParam(event, 'id')
     try {
         await mongoose.connect("mongodb://localhost:27017/Auth");
-        user = await User.findOne({id:id});
+        user = await User.findOne({id:id}).select('-password');;
       } catch (e) {
         console.error(e);
       }
