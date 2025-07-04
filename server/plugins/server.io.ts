@@ -18,7 +18,12 @@ const ALGORITHM = "aes-256-gcm";
 
 export default defineNitroPlugin(async (nitroApp: NitroApp) => {
   const engine = new Engine();
-  const io = new Server();
+  const io = new Server({
+    cors: {
+      origin: "*",
+      methods: ["GET", "POST"]
+    }
+  });
   await mongoose.connect("mongodb://localhost:27017/Auth");
 
   let clients = new Map();

@@ -19,43 +19,42 @@ export const useChatStore = defineStore(
     const chat = ref(null);
     let online = [];
     const notification = ref(false);
-    const replyId = ref(null)
-    const users = ref([])
-    const files = ref([])
-    const showChats = ref(false)
-    const showChatsPred = ref(true)
+    const replyId = ref(null);
+    const users = ref([]);
+    const files = ref([]);
+    const showChats = ref(false);
+    const showChatsPred = ref(true);
 
     const addMessage = async () => {
       try {
         chatLoader.value = true;
         userID.value = auth.user._id;
         console.log(files.value);
-        
+
         // Если есть файлы для загрузки
         if (files.value && files.value.length > 0) {
           const formData = new FormData();
-          
-          // Добавляем все файлы в FormData
-          files.value.forEach(file => {
-            formData.append('files', file);
-          });
-    
-          // Добавляем метаданные сообщения
-          formData.append('text', content.value);
-          formData.append('senderId', userID.value);
-          formData.append('senderName', auth.user.name);
-          formData.append('chatId', chat.value._id);
-          formData.append('userId1', auth.user._id);
-          formData.append('userId2', selectedChat.value._id);
-          formData.append('replyId', replyId.value || '');
-          formData.append('type', chat.value.type);
 
-          let response = await $fetch('/api/messages/files', {
+          // Добавляем все файлы в FormData
+          files.value.forEach((file) => {
+            formData.append("files", file);
+          });
+
+          // Добавляем метаданные сообщения
+          formData.append("text", content.value);
+          formData.append("senderId", userID.value);
+          formData.append("senderName", auth.user.name);
+          formData.append("chatId", chat.value._id);
+          formData.append("userId1", auth.user._id);
+          formData.append("userId2", selectedChat.value._id);
+          formData.append("replyId", replyId.value || "");
+          formData.append("type", chat.value.type);
+
+          let response = await $fetch("/api/messages/files", {
             method: "POST",
-            body: formData
-          })
-          
-          
+            body: formData,
+          });
+
           if (socket.value) {
             socket.value.emit("new message with files", formData);
           }
@@ -70,14 +69,13 @@ export const useChatStore = defineStore(
               userId1: auth.user._id,
               userId2: selectedChat.value._id,
               replyId: replyId.value,
-              type: chat.value.type
+              type: chat.value.type,
             });
           }
         }
         content.value = "";
         replyId.value = null;
         files.value = [];
-    
       } catch (err) {
         console.error("Ошибка при отправке сообщения:", err);
       } finally {
@@ -94,7 +92,7 @@ export const useChatStore = defineStore(
             messageId,
             userId1: auth.user._id,
             userId2: selectedChat.value._id,
-            chatId: chat.value._id
+            chatId: chat.value._id,
           });
         }
       } catch (err) {
@@ -107,41 +105,44 @@ export const useChatStore = defineStore(
     const createGroup = async (data) => {
       try {
         if (socket.value) {
-          let members = data.members
-          members.push(auth.user._id)
+          let members = data.members;
+          members.push(auth.user._id);
           socket.value.emit("create group", {
             title: data.title,
-            members: members, 
-            creatorId: auth.user._id
+            members: members,
+            creatorId: auth.user._id,
           });
         }
       } catch (error) {
-        console.error('Ошибка при создании группы:', error)
-        throw error
+        console.error("Ошибка при создании группы:", error);
+        throw error;
       }
-    }
+    };
 
     const goCreateGroup = async () => {
       try {
-        isLoading.value = true
-        users.value = await $fetch(`api/users/get?id=${auth.user._id}`)
+        isLoading.value = true;
+        users.value = await $fetch(`api/users/get?id=${auth.user._id}`);
       } catch (err) {
         console.log(err);
       } finally {
-        isLoading.value = false
+        isLoading.value = false;
       }
-    }
+    };
 
     const connect = () => {
       if (process.client) {
         userID.value = auth.user._id;
 
-        socket.value = io("ws://37.1.215.252:3000");
+        socket.value = io("http://37.1.215.252", {
+          path: "/socket.io/",
+          transports: ["websocket"],
+        });
 
         socket.value.emit("logined", {
           userId1: auth.user._id,
           userId2: selectedChat.value._id,
-          type: selectedChat.value.type
+          type: selectedChat.value.type,
         });
 
         socket.value.on("messages", (data) => {
@@ -156,10 +157,9 @@ export const useChatStore = defineStore(
         });
         socket.value.on("online", (data) => {
           online = data || [];
-          
+
           online.forEach((item) => {
             for (let client of clients.value) {
-              
               if (item == client._id) {
                 client.online = true;
               }
@@ -189,19 +189,19 @@ export const useChatStore = defineStore(
     const openChat = async (userChat) => {
       try {
         selectedChat.value = userChat;
-        showChats.value = false
-        showChatsPred.value = false
+        showChats.value = false;
+        showChatsPred.value = false;
         let response = await $fetch("/api/chat/messages", {
           method: "POST",
           body: {
             userId1: auth.user._id,
             userId2: userChat._id,
-            type: userChat.type
+            type: userChat.type,
           },
         });
         chat.value = response.chat;
         messages.value = response.messages;
-        clients.value = clients.value.map(client => {
+        clients.value = clients.value.map((client) => {
           if (client._id === selectedChat.value._id) {
             return { ...client, notification: false }; // Создаём новый объект
           }
@@ -214,16 +214,15 @@ export const useChatStore = defineStore(
 
     const openAllChats = () => {
       try {
-        showChatsPred.value = true
+        showChatsPred.value = true;
         setTimeout(() => {
-          showChats.value = true
-          showChatsPred.value = false
-        }, 300)
+          showChats.value = true;
+          showChatsPred.value = false;
+        }, 300);
       } catch (err) {
         console.log(err);
-        
       }
-    }
+    };
 
     const checkOnline = (name) => {
       try {
@@ -258,7 +257,7 @@ export const useChatStore = defineStore(
       disconnect,
       userID,
       notification,
-      openAllChats
+      openAllChats,
     };
   },
   { persist: true }
