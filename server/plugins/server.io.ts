@@ -178,6 +178,8 @@ export default defineNitroPlugin(async (nitroApp: NitroApp) => {
           data.type
         );
 
+        socket.emit("messages", messages)
+
         chat.members.forEach((client) => {
           const clientSocketId = clients.get(client.userId.toString());
           if (clientSocketId) {

@@ -66,37 +66,34 @@ export default defineEventHandler(async (event) => {
     await mongoose.connect("mongodb://localhost:27017/Auth");
     const { userId1, userId2, type } = await readBody(event);
 
-    // Валидация входных данных
-    if (!userId1 || !userId2 || !type) {
-      throw new Error("Missing required fields");
-    }
-
     let chat = null;
     
     if (type === "private") {
       const user1Id = new mongoose.Types.ObjectId(userId1);
       const user2Id = new mongoose.Types.ObjectId(userId2);
 
-      // Ищем или создаем приватный чат
-      chat = await Chat.findOneAndUpdate(
-        {
-          type: "private",
-          "members.userId": { $all: [user1Id, user2Id] },
-        },
-        {
-          $setOnInsert: {
-            type: "private",
-            members: [
-              { userId: user1Id, role: "member" },
-              { userId: user2Id, role: "member" },
-            ],
-          }
-        },
-        { 
-          upsert: true,
-          new: true 
+      // Ищем чат где оба пользователя являются участниками (ровно 2 участника)
+      chat = await Chat.findOne({
+        type: "private",
+        members: {
+          $size: 2,
+          $all: [
+            { $elemMatch: { userId: user1Id } },
+            { $elemMatch: { userId: user2Id } }
+          ]
         }
-      );
+      });
+
+      // Если чат не найден - создаем новый
+      if (!chat) {
+        chat = await Chat.create({
+          type: "private",
+          members: [
+            { userId: user1Id, role: "member" },
+            { userId: user2Id, role: "member" }
+          ]
+        });
+      }
     } else if (type === "group") {
       chat = await Chat.findOne({ 
         _id: new mongoose.Types.ObjectId(userId2),
