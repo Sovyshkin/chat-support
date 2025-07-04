@@ -136,7 +136,7 @@ export const useChatStore = defineStore(
       if (process.client) {
         userID.value = auth.user._id;
 
-        socket.value = io("ws://localhost:3000");
+        socket.value = io("ws://37.1.215.252:3000");
 
         socket.value.emit("logined", {
           userId1: auth.user._id,
