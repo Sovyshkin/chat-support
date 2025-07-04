@@ -8,7 +8,9 @@ const UserSchema = new Schema({
     age: Number,
     isGoogleUser: Boolean,
     isYandexUser: Boolean,
-    role: String
+    role: String,
+    avatar: String,
+    userId: String
   });
   
 export const User = model("User", UserSchema);
