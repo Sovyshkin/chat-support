@@ -11,15 +11,27 @@ export default defineEventHandler(async (event) => {
     } = await readBody(event);
     console.log(userId, avatar, name);
 
-    const user = new User({
-      name,
-      userId,
-      avatar,
-    });
+    if (!userId || !name) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: "UserId or Name is required!",
+      });
+    }
+    
+    const user = await User.findOne({ userId })
 
-    console.log(user);
+    if (!user) {
+      user = new User({
+        name,
+        userId,
+        avatar,
+      });
+  
+      console.log(user);
+  
+      await user.save();
+    }
 
-    await user.save();
     return user;
   } catch (e) {
     console.error(e);

@@ -7,7 +7,6 @@ export const useChatStore = defineStore(
     const socket = ref(null);
     const isLoading = ref(false);
     const empty = ref(true);
-    const auth = useAuthStore();
     const content = ref("");
     const username = ref("");
     const userID = ref("");
@@ -24,11 +23,12 @@ export const useChatStore = defineStore(
     const files = ref([]);
     const showChats = ref(false);
     const showChatsPred = ref(true);
+    const user = ref({})
 
     const addMessage = async () => {
       try {
         chatLoader.value = true;
-        userID.value = auth.user._id;
+        userID.value = user.value._id;
         console.log(files.value);
 
         // Если есть файлы для загрузки
@@ -43,9 +43,9 @@ export const useChatStore = defineStore(
           // Добавляем метаданные сообщения
           formData.append("text", content.value);
           formData.append("senderId", userID.value);
-          formData.append("senderName", auth.user.name);
+          formData.append("senderName", user.value.name);
           formData.append("chatId", chat.value._id);
-          formData.append("userId1", auth.user._id);
+          formData.append("userId1", user.value._id);
           formData.append("userId2", selectedChat.value._id);
           formData.append("replyId", replyId.value || "");
           formData.append("type", chat.value.type);
@@ -64,9 +64,9 @@ export const useChatStore = defineStore(
             socket.value.emit("new message", {
               text: content.value,
               senderId: userID.value,
-              senderName: auth.user.name,
+              senderName: user.value.name,
               chatId: chat.value._id,
-              userId1: auth.user._id,
+              userId1: user.value._id,
               userId2: selectedChat.value._id,
               replyId: replyId.value,
               type: chat.value.type,
@@ -86,11 +86,11 @@ export const useChatStore = defineStore(
     const deleteMessage = async (messageId) => {
       try {
         chatLoader.value = true;
-        userID.value = auth.user._id;
+        userID.value = user.value._id;
         if (socket.value) {
           socket.value.emit("delete message", {
             messageId,
-            userId1: auth.user._id,
+            userId1: user.value._id,
             userId2: selectedChat.value._id,
             chatId: chat.value._id,
           });
@@ -106,11 +106,11 @@ export const useChatStore = defineStore(
       try {
         if (socket.value) {
           let members = data.members;
-          members.push(auth.user._id);
+          members.push(user.value._id);
           socket.value.emit("create group", {
             title: data.title,
             members: members,
-            creatorId: auth.user._id,
+            creatorId: user.value._id,
           });
         }
       } catch (error) {
@@ -122,7 +122,7 @@ export const useChatStore = defineStore(
     const goCreateGroup = async () => {
       try {
         isLoading.value = true;
-        users.value = await $fetch(`api/users/get?id=${auth.user._id}`);
+        users.value = await $fetch(`api/users/get?id=${user.value._id}`);
       } catch (err) {
         console.log(err);
       } finally {
@@ -132,7 +132,7 @@ export const useChatStore = defineStore(
 
     const connect = () => {
       if (process.client) {
-        userID.value = auth.user._id;
+        userID.value = user.value._id;
 
         socket.value = io("http://37.1.215.252", { // http://37.1.215.252 http://localhost:3000
           path: "/socket.io/",
@@ -140,7 +140,7 @@ export const useChatStore = defineStore(
         });
 
         socket.value.emit("logined", {
-          userId1: auth.user._id,
+          userId1: user.value._id,
           userId2: selectedChat.value._id,
           type: selectedChat.value.type,
         });
@@ -194,7 +194,7 @@ export const useChatStore = defineStore(
         let response = await $fetch("/api/chat/messages", {
           method: "POST",
           body: {
-            userId1: auth.user._id,
+            userId1: user.value._id,
             userId2: userChat._id,
             type: userChat.type,
           },
@@ -233,6 +233,7 @@ export const useChatStore = defineStore(
     };
 
     return {
+      user,
       showChats,
       showChatsPred,
       files,
