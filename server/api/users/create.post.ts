@@ -4,31 +4,25 @@ import mongoose from "mongoose";
 export default defineEventHandler(async (event) => {
   try {
     await mongoose.connect("mongodb://localhost:27017/Auth");
-    let {
-      name,
-      userId,
-      avatar,
-    } = await readBody(event);
-    console.log(userId, avatar, name);
+    const { name, userId, avatar } = await readBody(event);
 
     if (!userId || !name) {
       throw createError({
         statusCode: 400,
-        statusMessage: "UserId or Name is required!",
+        statusMessage: "UserId and Name are required!",
       });
     }
-    
-    const user = await User.findOne({ userId })
+
+    // Ищем пользователя или создаем нового
+    let user = await User.findOne({ userId });
 
     if (!user) {
-      user = new User({
-        name,
-        userId,
-        avatar,
-      });
-  
-      console.log(user);
-  
+      user = new User({ name, userId, avatar });
+      await user.save();
+    } else {
+      // Если пользователь уже существует, можно обновить его данные (опционально)
+      user.name = name;
+      user.avatar = avatar;
       await user.save();
     }
 
@@ -36,7 +30,6 @@ export default defineEventHandler(async (event) => {
   } catch (e) {
     console.error(e);
     if (e.code === 11000) {
-      // Duplicate key error
       throw createError({
         statusCode: 409,
         statusMessage: "User already exists",
@@ -47,5 +40,4 @@ export default defineEventHandler(async (event) => {
       statusMessage: "Internal Server Error",
     });
   }
-  return null;
 });
