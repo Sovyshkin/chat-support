@@ -1,4 +1,4 @@
-import { Chat } from "~/server/models/chat.model";
+import { Ticket } from "~/server/models/ticket.model";
 import { Message } from "~/server/models/message.model";
 import mongoose from "mongoose";
 import { createDecipheriv } from 'node:crypto';
@@ -63,17 +63,17 @@ const decryptMessage = (message: any) => {
 
 export default defineEventHandler(async (event) => {
   try {
-    await mongoose.connect("mongodb://localhost:27017/Auth");
+    await mongoose.connect("mongodb://localhost:27017/chatSupport");
     const { userId1, userId2, type } = await readBody(event);
 
-    let chat = null;
+    let ticket = null;
     
     if (type === "private") {
       const user1Id = new mongoose.Types.ObjectId(userId1);
       const user2Id = new mongoose.Types.ObjectId(userId2);
 
       // Ищем чат где оба пользователя являются участниками (ровно 2 участника)
-      chat = await Chat.findOne({
+      ticket = await Ticket.findOne({
         type: "private",
         members: {
           $size: 2,
@@ -85,8 +85,8 @@ export default defineEventHandler(async (event) => {
       });
 
       // Если чат не найден - создаем новый
-      if (!chat) {
-        chat = await Chat.create({
+      if (!ticket) {
+        ticket = await Ticket.create({
           type: "private",
           members: [
             { userId: user1Id, role: "member" },
@@ -95,20 +95,20 @@ export default defineEventHandler(async (event) => {
         });
       }
     } else if (type === "group") {
-      chat = await Chat.findOne({ 
+      ticket = await Ticket.findOne({ 
         _id: new mongoose.Types.ObjectId(userId2),
         type: "group"
       });
       
-      if (!chat) {
-        throw new Error("Group chat not found");
+      if (!ticket) {
+        throw new Error("Group ticket not found");
       }
     } else {
-      throw new Error("Invalid chat type");
+      throw new Error("Invalid ticket type");
     }
 
     // Получаем и дешифруем сообщения
-    const encryptedMessages = await Message.find({ chatId: chat._id })
+    const encryptedMessages = await Message.find({ ticketId: ticket._id })
       .populate("replyTo")
       .sort({ createdAt: 1 })
       .lean();
@@ -116,10 +116,10 @@ export default defineEventHandler(async (event) => {
     const messages = encryptedMessages.map(decryptMessage);
     
     return { 
-      chat: {
-        ...chat.toObject(),
-        _id: chat._id.toString(),
-        members: chat.members.map(m => ({
+      ticket: {
+        ...ticket.toObject(),
+        _id: ticket._id.toString(),
+        members: ticket.members.map(m => ({
           ...m,
           userId: m.userId.toString()
         }))
@@ -127,7 +127,7 @@ export default defineEventHandler(async (event) => {
       messages 
     };
   } catch (e) {
-    console.error('Error in chat handler:', e);
+    console.error('Error in ticket handler:', e);
     return { 
       error: e.message,
       statusCode: e instanceof mongoose.Error.ValidationError ? 400 : 500

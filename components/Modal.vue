@@ -34,6 +34,7 @@ const emit = defineEmits(['close'])
   max-height: 90vh;
   overflow-y: auto;
   animation: fadeIn 0.3s ease;
+  min-width: 350px;
 }
 
 @keyframes fadeIn {

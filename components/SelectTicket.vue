@@ -1,8 +1,8 @@
 <template>
-    <div class="empty">There is nothing..</div>
+    <div class="text">Select a ticket</div>
   </template>
   <style scoped>
-  .empty {
+  .text {
     width: 100%;
     height: 92vh;
     display: flex;

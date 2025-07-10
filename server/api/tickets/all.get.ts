@@ -1,14 +1,13 @@
-import { Message } from "~/server/models/message.model.ts";
+import { Ticket } from "~/server/models/ticket.model";
 import mongoose from "mongoose";
 
 export default defineEventHandler(async (event) => {
   try {
     await mongoose.connect("mongodb://localhost:27017/chatSupport");
-    const { messageId } = await readBody(event);
 
-    let message = await Message.deleteOne({ _id: messageId })
+    let tickets = await Ticket.find({ status: "open" })
     
-    return message
+    return tickets
   } catch (e) {
     console.error(e);
     return { error: e.message };

@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 
 export default defineEventHandler(async (event) => {
   try {
-    await mongoose.connect("mongodb://localhost:27017/Auth");
+    await mongoose.connect("mongodb://localhost:27017/chatSupport");
     const { name, userId, avatar } = await readBody(event);
 
     if (!userId || !name) {
@@ -13,16 +13,22 @@ export default defineEventHandler(async (event) => {
       });
     }
 
-    // Ищем пользователя или создаем нового
     let user = await User.findOne({ userId });
+    
+    console.log(user);
+    
 
     if (!user) {
+      console.log("Пользователя не было");
       user = new User({ name, userId, avatar });
+      console.log(user);
       await user.save();
     } else {
-      // Если пользователь уже существует, можно обновить его данные (опционально)
+      console.log("Пользователь был")
       user.name = name;
       user.avatar = avatar;
+      console.log(user);
+      
       await user.save();
     }
 

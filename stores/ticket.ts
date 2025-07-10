@@ -1,8 +1,8 @@
 import { defineStore } from "pinia";
 import { io } from "socket.io-client";
 
-export const useChatStore = defineStore(
-  "chat",
+export const useTicketStore = defineStore(
+  "ticket",
   () => {
     const socket = ref(null);
     const isLoading = ref(false);
@@ -10,24 +10,24 @@ export const useChatStore = defineStore(
     const content = ref("");
     const username = ref("");
     const userID = ref("");
-    const chatLoader = ref(false);
+    const ticketLoader = ref(false);
     const messages = ref([]);
-    const chats = ref([]);
+    const tickets = ref([]);
     const clients = ref([]);
-    const selectedChat = ref("");
-    const chat = ref(null);
+    const selectedTicket = ref("");
+    const ticket = ref(null);
     let online = [];
     const notification = ref(false);
     const replyId = ref(null);
     const users = ref([]);
     const files = ref([]);
-    const showChats = ref(false);
-    const showChatsPred = ref(true);
-    const user = ref({})
+    const showTickets = ref(false);
+    const showTicketsPred = ref(true);
+    const user = ref({});
 
     const addMessage = async () => {
       try {
-        chatLoader.value = true;
+        ticketLoader.value = true;
         userID.value = user.value._id;
         console.log(files.value);
 
@@ -44,11 +44,9 @@ export const useChatStore = defineStore(
           formData.append("text", content.value);
           formData.append("senderId", userID.value);
           formData.append("senderName", user.value.name);
-          formData.append("chatId", chat.value._id);
-          formData.append("userId1", user.value._id);
-          formData.append("userId2", selectedChat.value._id);
+          formData.append("ticketId", selectedTicket.value._id);
+          formData.append("userId", user.value._id);
           formData.append("replyId", replyId.value || "");
-          formData.append("type", chat.value.type);
 
           let response = await $fetch("/api/messages/files", {
             method: "POST",
@@ -56,7 +54,10 @@ export const useChatStore = defineStore(
           });
 
           if (socket.value) {
-            socket.value.emit("new message with files", formData);
+            socket.value.emit("new message with files", {
+              ticketId: selectedTicket.value._id,
+              creatorId: selectedTicket.value.creatorId
+            });
           }
         } else {
           // Обычное текстовое сообщение
@@ -65,11 +66,8 @@ export const useChatStore = defineStore(
               text: content.value,
               senderId: userID.value,
               senderName: user.value.name,
-              chatId: chat.value._id,
-              userId1: user.value._id,
-              userId2: selectedChat.value._id,
+              ticketId: selectedTicket.value._id,
               replyId: replyId.value,
-              type: chat.value.type,
             });
           }
         }
@@ -79,70 +77,56 @@ export const useChatStore = defineStore(
       } catch (err) {
         console.error("Ошибка при отправке сообщения:", err);
       } finally {
-        chatLoader.value = false;
+        ticketLoader.value = false;
       }
     };
 
     const deleteMessage = async (messageId) => {
       try {
-        chatLoader.value = true;
+        ticketLoader.value = true;
         userID.value = user.value._id;
         if (socket.value) {
           socket.value.emit("delete message", {
             messageId,
             userId1: user.value._id,
-            userId2: selectedChat.value._id,
-            chatId: chat.value._id,
+            ticketId: ticket.value._id,
           });
         }
       } catch (err) {
         console.log(err);
       } finally {
-        chatLoader.value = false;
+        ticketLoader.value = false;
       }
     };
 
-    const createGroup = async (data) => {
+    const changeStatusTicket = async (status) => {
       try {
         if (socket.value) {
-          let members = data.members;
-          members.push(user.value._id);
-          socket.value.emit("create group", {
-            title: data.title,
-            members: members,
-            creatorId: user.value._id,
+          socket.value.emit("change status ticket", {
+            ticketId: selectedTicket.value._id,
+            status,
           });
         }
-      } catch (error) {
-        console.error("Ошибка при создании группы:", error);
-        throw error;
-      }
-    };
-
-    const goCreateGroup = async () => {
-      try {
-        isLoading.value = true;
-        users.value = await $fetch(`api/users/get?id=${user.value._id}`);
       } catch (err) {
         console.log(err);
-      } finally {
-        isLoading.value = false;
       }
     };
 
     const connect = () => {
       if (process.client) {
         userID.value = user.value._id;
+        console.log(user.value);
+        
 
-        socket.value = io("http://37.1.215.252", { // http://37.1.215.252 http://localhost:3000
+        socket.value = io("http://localhost:3000", {
+          // http://37.1.215.252 http://localhost:3000
           path: "/socket.io/",
           transports: ["websocket"],
         });
 
         socket.value.emit("logined", {
           userId1: user.value._id,
-          userId2: selectedChat.value._id,
-          type: selectedChat.value.type,
+          ticketId: selectedTicket.value._id,
         });
 
         socket.value.on("messages", (data) => {
@@ -152,29 +136,12 @@ export const useChatStore = defineStore(
           }
         });
 
-        socket.value.on("chats", (data) => {
-          clients.value = data || [];
-        });
-        socket.value.on("online", (data) => {
-          online = data || [];
-
-          online.forEach((item) => {
-            for (let client of clients.value) {
-              if (item == client._id) {
-                client.online = true;
-              }
-            }
-          });
-
-          // console.log(online.value);
+        socket.value.on("tickets", (data) => {
+          tickets.value = [...data];
         });
 
-        socket.value.on("notification", (id) => {
-          for (let client of clients.value) {
-            if (client._id == id) {
-              client.notification = true;
-            }
-          }
+        socket.value.on("ticket", (data) => {
+          selectedTicket.value = { ...data };
         });
       }
     };
@@ -186,24 +153,22 @@ export const useChatStore = defineStore(
       }
     };
 
-    const openChat = async (userChat) => {
+    const openTicket = async (ticketOpen) => {
       try {
-        selectedChat.value = userChat;
-        showChats.value = false;
-        showChatsPred.value = false;
-        let response = await $fetch("/api/chat/messages", {
+        selectedTicket.value = { ...ticketOpen };
+        showTickets.value = false;
+        showTicketsPred.value = false;
+        userID.value = user.value._id;
+        messages.value = await $fetch(`/api/tickets/messages`, {
           method: "POST",
           body: {
-            userId1: user.value._id,
-            userId2: userChat._id,
-            type: userChat.type,
+            ticketId: ticketOpen._id,
           },
         });
-        chat.value = response.chat;
-        messages.value = response.messages;
+        
         clients.value = clients.value.map((client) => {
-          if (client._id === selectedChat.value._id) {
-            return { ...client, notification: false }; // Создаём новый объект
+          if (client._id === selectedTicket.value._id) {
+            return { ...client, notification: false };
           }
           return client;
         });
@@ -212,12 +177,12 @@ export const useChatStore = defineStore(
       }
     };
 
-    const openAllChats = () => {
+    const openAllTickets = () => {
       try {
-        showChatsPred.value = true;
+        showTicketsPred.value = true;
         setTimeout(() => {
-          showChats.value = true;
-          showChatsPred.value = false;
+          showTickets.value = true;
+          showTicketsPred.value = false;
         }, 300);
       } catch (err) {
         console.log(err);
@@ -232,24 +197,40 @@ export const useChatStore = defineStore(
       }
     };
 
+    const createTicket = async (newTicket) => {
+      try {
+        isLoading.value = true;
+
+        socket.value.emit("new ticket", {
+          title: newTicket.title,
+          description: newTicket.description,
+          creatorId: user.value._id,
+        });
+
+      } catch (err) {
+        console.log(err);
+      } finally {
+        isLoading.value = false;
+      }
+    };
+
     return {
+      createTicket,
       user,
-      showChats,
-      showChatsPred,
+      showTickets,
+      showTicketsPred,
       files,
-      goCreateGroup,
       users,
-      createGroup,
       replyId,
       deleteMessage,
-      chat,
+      ticket,
       checkOnline,
-      selectedChat,
-      openChat,
+      selectedTicket,
+      openTicket,
       clients,
-      chats,
+      tickets,
       isLoading,
-      chatLoader,
+      ticketLoader,
       empty,
       addMessage,
       content,
@@ -258,7 +239,8 @@ export const useChatStore = defineStore(
       disconnect,
       userID,
       notification,
-      openAllChats,
+      openAllTickets,
+      changeStatusTicket,
     };
   },
   { persist: true }

@@ -13,7 +13,7 @@ if (!fs.existsSync(publicUploadDir)) {
 
 export default defineEventHandler(async (event) => {
   try {
-    await mongoose.connect("mongodb://localhost:27017/Auth");
+    await mongoose.connect("mongodb://localhost:27017/chatSupport");
 
     // Обработка сообщений с файлами
     const formData = await readMultipartFormData(event);
@@ -62,7 +62,7 @@ export default defineEventHandler(async (event) => {
       text: fields.text,
       senderId: fields.senderId,
       senderName: fields.senderName,
-      chatId: fields.chatId,
+      ticketId: fields.ticketId,
       replyTo: fields.replyId || null,
       media: files.map(file => ({
         type: getMediaType(file.type),

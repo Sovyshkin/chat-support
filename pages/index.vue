@@ -7,56 +7,42 @@ import AppEmpty from "@/components/AppEmpty.vue";
 const contextMenuVisible = ref(false);
 const contextMenuPosition = ref({ x: 0, y: 0 });
 const selectedMessage = ref(null);
-const contextMenuWidth = 160; // Ширина контекстного меню
-const contextMenuHeight = 120; // Примерная высота контекстного меню
+const contextMenuWidth = 160;
+const contextMenuHeight = 120;
 
-// Функция для показа контекстного меню
 const showContextMenu = (event, message) => {
   event.preventDefault();
   selectedMessage.value = message;
 
-  // Получаем размеры окна
   const windowWidth = window.innerWidth;
   const windowHeight = window.innerHeight;
 
-  // Рассчитываем позицию с учетом границ экрана
   let x = event.clientX;
   let y = event.clientY;
 
-  // Проверяем правую границу
   if (x + contextMenuWidth > windowWidth) {
-    x = windowWidth - contextMenuWidth - 10; // 10px отступ от края
+    x = windowWidth - contextMenuWidth - 10;
   }
 
-  // Проверяем нижнюю границу
   if (y + contextMenuHeight > windowHeight) {
-    y = windowHeight - contextMenuHeight - 10; // 10px отступ от края
+    y = windowHeight - contextMenuHeight - 10;
   }
 
   contextMenuPosition.value = { x, y };
   contextMenuVisible.value = true;
 };
-// Функция для скрытия меню
 const hideContextMenu = () => {
   contextMenuVisible.value = false;
 };
 
-// Добавляем обработчики после монтирования компонента
-onMounted(async () => {
-  document.addEventListener("click", hideContextMenu);
-});
-
-// Удаляем обработчики перед размонтированием
 onBeforeUnmount(() => {
   document.removeEventListener("click", hideContextMenu);
 });
 
-// Копирование текста сообщения
 const copyMessage = (message) => {
   navigator.clipboard
     .writeText(message.text)
     .then(() => {
-      // Можно добавить уведомление об успешном копировании
       console.log("Текст скопирован");
     })
     .catch((err) => {
@@ -65,19 +51,16 @@ const copyMessage = (message) => {
   contextMenuVisible.value = false;
 };
 
-// Ответ на сообщение
 const replyToMessage = (message) => {
-  chatStore.replyId = message._id;
+  ticketStore.replyId = message._id;
   contextMenuVisible.value = false;
-  // Можно добавить фокус на поле ввода
   document.querySelector(".group-item")?.focus();
 };
 
-// Удаление сообщения
 const deleteMessage = async (message) => {
   if (confirm("Вы уверены, что хотите удалить это сообщение?")) {
     try {
-      await chatStore.deleteMessage(message._id);
+      await ticketStore.deleteMessage(message._id);
     } catch (err) {
       console.error("Ошибка при удалении сообщения:", err);
     }
@@ -86,30 +69,29 @@ const deleteMessage = async (message) => {
 };
 
 const cancelReply = () => {
-  chatStore.replyId = null;
+  ticketStore.replyId = null;
 };
 
-// Метод для получения текста сообщения, на которое отвечаем
 const getRepliedMessageText = (replyId) => {
-  const repliedMessage = chatStore.messages.find((msg) => msg._id === replyId);
+  const repliedMessage = ticketStore.messages.find(
+    (msg) => msg._id === replyId
+  );
   return repliedMessage?.text || "Сообщение удалено";
 };
 
-const chatStore = useChatStore();
-chatStore.connect();
+const ticketStore = useTicketStore();
+ticketStore.connect();
 
-
-const messagesContainer = ref(null); // Создаем ref для контейнера сообщений
+const messagesContainer = ref(null);
 // const toast = useToast()
 
 const handleEnter = (event) => {
   if (event.key === "Enter" && !event.shiftKey) {
     event.preventDefault();
-    chatStore.addMessage();
+    ticketStore.addMessage();
   }
 };
 
-// Функция для прокрутки к последнему сообщению
 const scrollToBottom = () => {
   nextTick(() => {
     if (messagesContainer.value) {
@@ -138,19 +120,15 @@ const scrollToRepliedMessage = (replyToId) => {
   }
 };
 
-// Добавляем ref для хранения выбранных файлов
 const fileInput = ref(null);
 
-// Функция для открытия диалога выбора файлов
 const openFilePicker = () => {
   fileInput.value.click();
 };
 
-// Обработчик выбора файлов
 const handleFileSelect = (event) => {
   const selectedFiles = Array.from(event.target.files);
 
-  // Проверяем размер файлов (например, не более 10MB)
   const maxSize = 10 * 1024 * 1024; // 10MB
   const validFiles = selectedFiles.filter((file) => file.size <= maxSize);
 
@@ -158,16 +136,14 @@ const handleFileSelect = (event) => {
     alert("Некоторые файлы превышают максимальный размер (10MB)");
   }
 
-  chatStore.files = [...chatStore.files, ...validFiles];
-  event.target.value = ""; // Сбрасываем input для возможности повторного выбора тех же файлов
+  ticketStore.files = [...ticketStore.files, ...validFiles];
+  event.target.value = "";
 };
 
-// Удаление файла из списка перед отправкой
 const removeFile = (index) => {
-  chatStore.files.splice(index, 1);
+  ticketStore.files.splice(index, 1);
 };
 
-// Определяем тип файла для отображения соответствующего значка
 const fileTypeIcon = computed(() => {
   return (file) => {
     if (file.type.startsWith("image/")) return "image";
@@ -177,7 +153,6 @@ const fileTypeIcon = computed(() => {
   };
 });
 
-// Добавляем computed для определения типа медиа
 const mediaType = (media) => {
   if (media.type === "image") return "image";
   if (media.type === "video") return "video";
@@ -186,7 +161,6 @@ const mediaType = (media) => {
   return "document";
 };
 
-// Функция для форматирования длительности
 const formatDuration = (seconds) => {
   if (!seconds) return "0:00";
   const mins = Math.floor(seconds / 60);
@@ -194,69 +168,79 @@ const formatDuration = (seconds) => {
   return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
 };
 
-// Функция для форматирования размера файла
 const formatFileSize = (bytes) => {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
-// Добавляем состояние для полноэкранного просмотра
 const fullscreenImage = ref({
   visible: false,
   url: "",
   caption: "",
 });
 
-// Функция для открытия изображения на весь экран
 const openFullscreenImage = (url, caption = "") => {
   fullscreenImage.value = {
     visible: true,
     url,
     caption,
   };
-  // Блокируем прокрутку фона
   document.body.style.overflow = "hidden";
 };
 
-// Функция для закрытия полноэкранного режима
 const closeFullscreenImage = () => {
   fullscreenImage.value.visible = false;
-  // Восстанавливаем прокрутку фона
   document.body.style.overflow = "";
 };
 
-const auth = async () => {
-  try {
-    window.addEventListener('message', (event) => {
-    // Проверяем origin отправителя для безопасности
-    if (event.origin !== 'https://родительский-сайт.com') return;
+const iframeData = ref({});
 
-    // Получаем данные
-    const data = event.data;
-    console.log('Получены данные:', data);
-});
+const getDataIframe = async () => {
+  try {
+    let params = location.href.split("?")[1].split("&");
+    for (let x in params) {
+      iframeData.value[params[x].split("=")[0]] = params[x].split("=")[1];
+    }
+    let response = await $fetch("/api/users/create", {
+      method: "POST",
+      body: {
+        ...iframeData.value,
+      },
+    });
+    ticketStore.user = response;
+    await ticketStore.disconnect();
+    await ticketStore.connect();
   } catch (err) {
-    
+    console.log(err);
+    if (err.message) {
+      alert(err.message);
+    }
   }
-}
+};
+
+const isHeaderExpanded = ref(false);
+
+const toggleHeader = () => {
+  isHeaderExpanded.value = !isHeaderExpanded.value;
+};
 
 onMounted(async () => {
-  await auth()
+  await getDataIframe();
+  document.addEventListener("click", hideContextMenu);
+  console.log(ticketStore.messages);
   nextTick(() => {
     scrollToBottom();
-    // Добавляем дополнительную проверку через setTimeout
     setTimeout(scrollToBottom, 300);
   });
 });
 
 watch(
-  () => chatStore.messages,
+  () => ticketStore.messages,
   () => {
-    chatStore.isLoading = false;
+    ticketStore.isLoading = false;
     nextTick(() => {
       scrollToBottom();
-      // Дополнительная проверка для асинхронно загружаемых медиа
       setTimeout(scrollToBottom, 500);
     });
   },
@@ -268,14 +252,14 @@ watch(
   <div class="wrapper">
     <div
       class="menu mobile"
-      v-if="!chatStore.showChats"
-      @click="chatStore.openAllChats()"
+      v-if="!ticketStore.showTickets"
+      @click="ticketStore.openAllTickets()"
     >
       <img class="menu-img" src="../assets/menu.png" alt="" />
     </div>
-    <AllChats class="desk"/>
+    <AllTickets class="desk" />
     <transition name="fadeChats" class="mobile">
-      <AllChats v-if="chatStore.showChats" />
+      <AllTickets v-if="ticketStore.showTickets" />
     </transition>
     <div
       v-if="fullscreenImage?.visible"
@@ -290,18 +274,58 @@ watch(
         </div>
       </div>
     </div>
+    <SelectTicket v-if="!ticketStore.selectedTicket" />
     <transition name="fadeChatContainer">
-      <div class="chat" v-if="!chatStore.showChats">
+      <div
+        class="ticket"
+        v-if="!ticketStore.showTickets && ticketStore.selectedTicket"
+      >
+        <div class="ticket-header">
+          <div class="ticket-info">
+            <span class="info-tite">{{
+              ticketStore.selectedTicket.title
+            }}</span>
+            <span class="info-desc">{{
+              ticketStore.selectedTicket.description
+            }}</span>
+          </div>
+          <button
+            v-if="ticketStore.selectedTicket.description?.length > 50"
+            class="expand-button"
+            @click="toggleHeader"
+          >
+            <img
+              src="../assets/chevron-down.svg"
+              class="expand-icon"
+              alt="expand"
+            />
+            {{ isHeaderExpanded ? "Roll up" : "More" }}
+          </button>
+          <button
+            class="close-ticket"
+            v-if="ticketStore.selectedTicket.status == 'open'"
+            @click="ticketStore.changeStatusTicket('closed')"
+          >
+            Close the ticket
+          </button>
+          <button
+            class="open-ticket"
+            v-if="ticketStore.selectedTicket.status == 'closed'"
+            @click="ticketStore.changeStatusTicket('open')"
+          >
+            Open the ticket
+          </button>
+        </div>
         <div
           class="messages"
-          v-if="!chatStore?.empty && !chatStore?.isLoading"
+          v-if="!ticketStore?.empty && !ticketStore?.isLoading"
           ref="messagesContainer"
         >
           <div
             class="wrap-message"
-            v-for="message in chatStore.messages"
+            v-for="message in ticketStore.messages"
             :key="message._id"
-            :class="{ user: message.senderId == chatStore.userID }"
+            :class="{ user: message.senderId == ticketStore.userID }"
             :data-message-id="message._id"
             @contextmenu.prevent="showContextMenu($event, message)"
             @click="hideContextMenu"
@@ -309,17 +333,16 @@ watch(
             <div
               class="group-message"
               :class="{
-                userGroupMessage: message.senderId == chatStore.userID,
+                userGroupMessage: message.senderId == ticketStore.userID,
               }"
             >
-              <!-- Блок с ответом на сообщение (если есть replyTo) -->
               <div
                 class="reply-preview"
                 v-if="message.replyTo"
                 @click="scrollToRepliedMessage(message.replyTo._id)"
               >
                 <div class="reply-info">
-                  <span class="reply-label">Ответ на:</span>
+                  <span class="reply-label">The answer to:</span>
                   <span class="reply-sender">
                     {{ message.replyTo.senderName }}
                   </span>
@@ -328,7 +351,6 @@ watch(
                   {{ message.replyTo.text }}
                 </div>
               </div>
-              <!-- Блок с медиафайлами -->
               <div
                 class="media-container"
                 v-if="message.media && message.media.length"
@@ -337,9 +359,8 @@ watch(
                   v-for="media in message.media"
                   :key="media.url"
                   class="media-item"
-                  :class="{ userMedia: message.senderId == chatStore.userID }"
+                  :class="{ userMedia: message.senderId == ticketStore.userID }"
                 >
-                  <!-- Фото -->
                   <div v-if="mediaType(media) === 'image'" class="media-photo">
                     <img
                       :src="media.url"
@@ -351,7 +372,6 @@ watch(
                     </div>
                   </div>
 
-                  <!-- Видео -->
                   <div v-if="mediaType(media) === 'video'" class="media-video">
                     <video controls :poster="media.thumbnail">
                       <source
@@ -369,7 +389,6 @@ watch(
                     </div>
                   </div>
 
-                  <!-- Аудио -->
                   <div v-if="mediaType(media) === 'audio'" class="media-audio">
                     <audio controls>
                       <source
@@ -383,7 +402,6 @@ watch(
                     </div>
                   </div>
 
-                  <!-- Голосовое сообщение -->
                   <div v-if="mediaType(media) === 'voice'" class="media-voice">
                     <div class="voice-wave">
                       <div class="wave"></div>
@@ -398,7 +416,6 @@ watch(
                     }}</span>
                   </div>
 
-                  <!-- Документ -->
                   <div
                     v-if="mediaType(media) === 'document'"
                     class="media-document"
@@ -424,25 +441,24 @@ watch(
               <div
                 class="message"
                 v-html="message.text"
-                :class="{ userMessage: message.senderId == chatStore.userID }"
+                :class="{ userMessage: message.senderId == ticketStore.userID }"
               ></div>
               <div class="avatar">
                 <img
                   src="../assets/image.png"
                   alt=""
-                  v-if="message.userID == chatStore.userID"
+                  v-if="message.userID == ticketStore.userID"
                 />
                 <img src="../assets/gpt.svg" alt="" v-else />
               </div>
               <div
                 class="username"
-                :class="{ me: message.senderId == chatStore.userID }"
+                :class="{ me: message.senderId == ticketStore.userID }"
               >
                 {{ message.senderName }}
               </div>
             </div>
           </div>
-          <!-- Контекстное меню -->
           <div
             v-if="contextMenuVisible"
             class="context-menu"
@@ -458,10 +474,10 @@ watch(
             >
               <img
                 src="../assets/reply.png"
-                alt="Ответить"
+                alt="reply"
                 class="context-menu-icon"
               />
-              <span>Ответить</span>
+              <span>To answer</span>
             </div>
             <div
               class="context-menu-item"
@@ -469,32 +485,34 @@ watch(
             >
               <img
                 src="../assets/copy.png"
-                alt="Копировать"
+                alt="copy"
                 class="context-menu-icon"
               />
-              <span>Копировать</span>
+              <span>Copy</span>
             </div>
             <div
               class="context-menu-item danger"
-              v-if="selectedMessage?.senderId == chatStore.userID"
+              v-if="selectedMessage?.senderId == ticketStore.userID"
               @click="deleteMessage(selectedMessage)"
             >
               <img
                 src="../assets/delete.png"
-                alt="Удалить"
+                alt="delete"
                 class="context-menu-icon"
               />
-              <span>Удалить</span>
+              <span>Delete</span>
             </div>
           </div>
         </div>
-        <AppEmpty v-if="chatStore.empty" />
-        <ChatLoader class="left" v-if="chatStore.chatLoader" />
-        <div class="group-send">
-          <!-- Блок с превью выбранных файлов -->
+        <AppEmpty v-if="ticketStore.empty" />
+        <ChatLoader class="left" v-if="ticketStore.ticketLoader" />
+        <div
+          class="group-send"
+          v-if="ticketStore.selectedTicket.status == 'open'"
+        >
           <transition-group name="slide-down" tag="div" class="files-preview">
             <div
-              v-for="(file, index) in chatStore.files"
+              v-for="(file, index) in ticketStore.files"
               :key="file.name + index"
               class="file-item"
             >
@@ -513,15 +531,14 @@ watch(
             </div>
           </transition-group>
 
-          <!-- Блок с информацией о сообщении, на которое отвечаем -->
           <transition name="slide-down">
-            <div class="reply-preview" v-if="chatStore.replyId">
+            <div class="reply-preview" v-if="ticketStore.replyId">
               <div class="reply-info">
-                <span>Ответ на сообщение:</span>
+                <span>Reply to the message:</span>
                 <button @click="cancelReply" class="cancel-reply">×</button>
               </div>
               <div class="reply-text">
-                {{ getRepliedMessageText(chatStore.replyId) }}
+                {{ getRepliedMessageText(ticketStore.replyId) }}
               </div>
             </div>
           </transition>
@@ -529,7 +546,6 @@ watch(
             <button @click="openFilePicker" class="attach-button">
               <img src="../assets/attach.png" alt="Прикрепить файл" />
             </button>
-            <!-- Скрытый input для выбора файлов -->
             <input
               type="file"
               ref="fileInput"
@@ -540,19 +556,19 @@ watch(
             <input
               type="text"
               class="group-item"
-              v-model="chatStore.content"
+              v-model="ticketStore.content"
               @keydown.enter="handleEnter"
-              placeholder="начни писать..."
+              placeholder="Start writing..."
             />
             <img
               class="send"
               src="../assets/send.svg"
-              @click="chatStore.addMessage"
+              @click="ticketStore.addMessage"
               alt=""
-              v-if="!chatStore.isLoading"
+              v-if="!ticketStore.isLoading"
             />
           </div>
-          <AppLoader v-if="chatStore.isLoading" />
+          <AppLoader v-if="ticketStore.isLoading" />
         </div>
       </div>
     </transition>
@@ -701,11 +717,11 @@ label {
   width: 28px;
   height: 28px;
   border-radius: 8px;
-  overflow: hidden; /* Обрезает изображение, если оно выходит за пределы блока */
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #f0f0f0; /* Фон на случай, если изображение не загрузится */
+  background-color: #f0f0f0;
   box-sizing: border-box;
 }
 
@@ -714,9 +730,9 @@ label {
   height: 100%;
   object-fit: cover;
   border-radius: 8px;
-  display: block; /* Убирает лишние пробелы */
-  border: none; /* Убирает возможные границы */
-  padding: 0; /* Убирает возможные отступы */
+  display: block;
+  border: none;
+  padding: 0;
   margin: 0;
 }
 
@@ -765,7 +781,6 @@ label {
   transform: none;
 }
 
-/* Добавляем стили для контекстного меню */
 .context-menu {
   position: fixed;
   background-color: white;
@@ -861,7 +876,6 @@ label {
   transition: background-color 0.3s;
 }
 
-/* Стили для блока ответа */
 .reply-preview {
   width: 100%;
   padding: 8px 12px;
@@ -902,7 +916,6 @@ label {
   color: #ff3b30;
 }
 
-/* Дополнительные стили для плавности */
 .reply-preview {
   width: 100%;
   padding: 8px 12px;
@@ -986,8 +999,7 @@ label {
   position: absolute;
 }
 
-/* Обновленные стили для чата */
-.chat {
+.ticket {
   width: 100%;
   height: 100vh;
   max-width: 1440px;
@@ -996,12 +1008,11 @@ label {
   position: relative;
 }
 
-/* Фиксируем высоту блока сообщений с возможностью прокрутки */
 .messages {
   width: 100%;
   max-width: 1440px;
   margin: 0 auto;
-  height: calc(100vh - 150px); /* Оставляем место для инпута */
+  height: calc(100vh - 150px - 60px);
   background-color: #f8f9fc;
   padding: 20px;
   border-radius: 20px 20px 0 0;
@@ -1013,7 +1024,6 @@ label {
   flex-grow: 1;
 }
 
-/* Фиксируем блок отправки внизу */
 .group-send {
   position: sticky;
   bottom: 0;
@@ -1027,7 +1037,6 @@ label {
   flex-direction: column;
 }
 
-/* Анимации без изменения layout */
 .slide-down-enter-active,
 .slide-down-leave-active {
   transition: all 0.3s ease;
@@ -1044,20 +1053,17 @@ label {
   padding-bottom: 0;
 }
 
-/* Плавное появление файлов */
 .files-preview {
   max-height: 200px;
   overflow-y: auto;
   transition: max-height 0.3s ease;
 }
 
-/* Инпут теперь не прыгает */
 .wrap-send {
   transition: padding-top 0.2s ease;
   position: relative;
 }
 
-/* Улучшенные стили для превью файлов */
 .file-item {
   background: #f8f9fc;
   border-radius: 8px;
@@ -1065,7 +1071,6 @@ label {
   transition: all 0.2s ease;
 }
 
-/* Стили для медиафайлов */
 .media-container {
   width: 100%;
   margin-bottom: 8px;
@@ -1265,7 +1270,6 @@ label {
   height: 20px;
 }
 
-/* Адаптивные стили */
 @media (max-width: 768px) {
   .media-photo,
   .media-video {
@@ -1281,7 +1285,7 @@ label {
     max-width: 80%;
   }
 }
-/* Добавляем стили для полноэкранного просмотра */
+
 .fullscreen-image-overlay {
   position: fixed;
   top: 0;
@@ -1328,12 +1332,10 @@ label {
   height: 40px;
 }
 
-/* Улучшаем стили для прокрутки */
 .messages {
   scroll-behavior: smooth;
 }
 
-/* Плавная анимация для чатов */
 .fadeChats-enter-active,
 .fadeChats-leave-active {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -1349,7 +1351,6 @@ label {
   opacity: 0;
 }
 
-/* Плавная анимация для чатов */
 .fadeChatContainer-enter-active,
 .fadeChatContainer-leave-active {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -1363,5 +1364,117 @@ label {
 .fadeChatContainer-leave-to {
   transform: translateX(-100%);
   opacity: 0;
+}
+
+.ticket-header {
+  width: 100%;
+  height: 60px; /* Фиксированная высота */
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  background-color: #fff;
+  border-bottom: 1px solid #e0e0e0;
+  position: relative; /* Для позиционирования расширенного описания */
+  overflow: hidden; /* Скрываем выходящий за пределы контент */
+  transition: height 0.3s ease; /* Плавное раскрытие */
+}
+
+.ticket-header.expanded {
+  height: auto; /* Раскрываем на всю высоту контента */
+  min-height: 60px; /* Минимальная высота */
+}
+
+.ticket-info {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+  padding-right: 10px;
+}
+
+.info-tite {
+  font-weight: 600;
+  font-size: 1rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.info-desc {
+  font-size: 0.9rem;
+  color: #666;
+  display: -webkit-box;
+  -webkit-line-clamp: 1; /* Показываем только 1 строку */
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: all 0.3s ease;
+}
+
+.ticket-header.expanded .info-desc {
+  -webkit-line-clamp: unset; /* Показываем весь текст */
+  white-space: normal;
+}
+
+.expand-button {
+  position: absolute;
+  right: 120px; /* Смещаем левее кнопок действий */
+  bottom: 10px;
+  background: none;
+  border: none;
+  color: #4a6bff;
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 2px 5px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.expand-button:hover {
+  text-decoration: underline;
+}
+
+.expand-icon {
+  width: 12px;
+  height: 12px;
+  transition: transform 0.3s ease;
+}
+
+.ticket-header.expanded .expand-icon {
+  transform: rotate(180deg);
+}
+
+.close-ticket,
+.open-ticket {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.close-ticket {
+  background-color: #db1d1d;
+  color: white;
+}
+
+.open-ticket {
+  background-color: #4a6bff;
+  color: white;
+}
+
+.close-ticket:hover {
+  background-color: #be2e2e;
+}
+
+.open-ticket:hover {
+  background-color: #3a5bef;
 }
 </style>

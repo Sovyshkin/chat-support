@@ -5,7 +5,7 @@ export default defineEventHandler(async (event) => {
     let user;
     const id = getRouterParam(event, 'id')
     try {
-        await mongoose.connect("mongodb://localhost:27017/Auth");
+        await mongoose.connect("mongodb://localhost:27017/chatSupport");
         user = await User.findOne({id:id}).select('-password');;
       } catch (e) {
         console.error(e);

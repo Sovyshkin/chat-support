@@ -12,7 +12,7 @@ export default defineEventHandler(async (event) => {
     const { email, password, name, isGoogleUser, isYandexUser } = await readBody(event);
     
     try {
-      await mongoose.connect("mongodb://localhost:27017/Auth");
+      await mongoose.connect("mongodb://localhost:27017/chatSupport");
         const user = await User.findOne({email});
         let passwordHash = await hashPassword(password)
         if (user){

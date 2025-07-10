@@ -2,7 +2,7 @@ import type { NitroApp } from "nitropack";
 import { Server as Engine } from "engine.io";
 import { Server } from "socket.io";
 import { defineEventHandler } from "h3";
-import { Chat } from "../models/chat.model";
+import { Ticket } from "../models/ticket.model";
 import { Message } from "~/server/models/message.model";
 import { User } from "~/server/models/user.model";
 import mongoose from "mongoose";
@@ -13,8 +13,12 @@ const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
 if (!ENCRYPTION_KEY) {
   throw new Error("ENCRYPTION_KEY is not defined in environment variables");
 }
-
 const ALGORITHM = "aes-256-gcm";
+
+const ADMINS_ID = Array.from(JSON.parse(process.env.ADMINS_ID));
+if (!ADMINS_ID) {
+  throw new Error("ADMINS_ID is not defined in environment variables");
+}
 
 export default defineNitroPlugin(async (nitroApp: NitroApp) => {
   const engine = new Engine();
@@ -24,7 +28,7 @@ export default defineNitroPlugin(async (nitroApp: NitroApp) => {
       methods: ["GET", "POST"]
     }
   });
-  await mongoose.connect("mongodb://localhost:27017/Auth");
+  await mongoose.connect("mongodb://localhost:27017/chatSupport");
 
   let clients = new Map();
 
@@ -48,7 +52,6 @@ export default defineNitroPlugin(async (nitroApp: NitroApp) => {
     };
   };
 
-  // Дешифровка сообщения
   const decryptMessage = (
     encryptedText: string,
     iv: string,
@@ -60,7 +63,6 @@ export default defineNitroPlugin(async (nitroApp: NitroApp) => {
       Buffer.from(iv, "base64")
     );
 
-    // Устанавливаем тег аутентификации перед дешифровкой
     decipher.setAuthTag(Buffer.from(authTag, "base64"));
 
     let decrypted = decipher.update(encryptedText, "base64", "utf8");
@@ -69,89 +71,62 @@ export default defineNitroPlugin(async (nitroApp: NitroApp) => {
     return decrypted;
   };
 
-  // Получение сообщений с дешифровкой
-  const getMessages = async (userId1, userId2, type) => {
+  const getMessages = async (ticketId) => {
     try {
-      let response = await $fetch("/api/chat/messages", {
+      let response = await $fetch("/api/tickets/messages", {
         method: "POST",
         body: {
-          userId1,
-          userId2,
-          type,
+          ticketId
         },
       });
-
-      console.log(userId1, userId2, type);
-      console.log(response);
-      
-      
-
+    
       return response;
     } catch (err) {
       console.log(err);
     }
   };
 
-  // Получение списка чатов
-  const getChats = async (userId: string) => {
+  const getTickets = async (userId = false) => {
     try {
-      const userObjectId = new mongoose.Types.ObjectId(userId);
+      let userObjectId;
+      let tickets;
+      console.log(userId);
+      console.log(ADMINS_ID.includes(userId));
+      
+      if (!ADMINS_ID.includes(userId) && userId) {
+        userObjectId = new mongoose.Types.ObjectId(userId);
+        tickets = await Ticket.find({ creatorId: userObjectId })
+      } else {
+        tickets = await Ticket.find()
+      }
 
-      const [personalChats, groupChats] = await Promise.all([
-        User.find({ _id: { $ne: userObjectId } }).lean(),
-        Chat.find({
-          type: "group",
-          members: { $elemMatch: { userId: userObjectId } },
-        }).lean(),
-      ]);
-
-      return [
-        ...groupChats.map((chat) => ({
-          _id: chat._id.toString(),
-          name: chat.title,
-          type: "group" as const,
-          online: false,
-          notification: false,
-          members: chat.members.map((m) => m.toString()),
-        })),
-        ...personalChats.map((chat) => ({
-          _id: chat._id.toString(),
-          name: chat.name || chat.username,
-          type: "private" as const,
-          online: false,
-          notification: false,
-        })),
-      ];
+      return tickets;
     } catch (err) {
-      console.error("Ошибка при загрузке чатов:", err);
+      console.error("Error loading tickets:", err);
       return [];
     }
   };
 
-  // Получение информации о чате
-  const getChat = async (id: string) => {
-    return await Chat.findOne({ _id: id });
+  const getTicket = async (id: string) => {
+    return await Ticket.findOne({ _id: id });
   };
 
   io.bind(engine);
 
   io.on("connection", async (socket) => {
-    // Обработка входа пользователя
     socket.on("logined", async (data) => {
       try {
         clients.set(data.userId1, socket.id);
-        const chats = await getChats(data.userId1)
-        const messagesResp = await getMessages(data.userId1, data.userId2, data.type)
-        socket.emit("chats", chats);
         io.emit("online", Array.from(clients.keys()));
-        
-        socket.emit("messages", messagesResp.messages);
+        const tickets = await getTickets(data.userId1)
+        socket.emit("tickets", tickets);
+        let messages = await getMessages(data.ticketId)
+        socket.emit("messages", messages);
       } catch (error) {
         console.error("Login error:", error);
       }
     });
 
-    // Обработка нового сообщения
     socket.on("new message", async (data) => {
       try {
         const { encrypted, iv, authTag } = encryptMessage(data.text);
@@ -165,23 +140,21 @@ export default defineNitroPlugin(async (nitroApp: NitroApp) => {
           isEncrypted: true,
           senderId: data.senderId,
           senderName: data.senderName,
-          chatId: data.chatId,
+          ticketId: data.ticketId,
           replyTo: data.replyId,
         });
 
         await message.save();
-        console.log("Сообщение добавлено", message.text);
+        console.log("Сообщение добавлено", data.text);
 
-        const { chat, messages } = await getMessages(
-          data.userId1,
-          data.userId2,
-          data.type
+        const messages = await getMessages(
+          data.ticketId
         );
 
         socket.emit("messages", messages)
 
-        chat.members.forEach((client) => {
-          const clientSocketId = clients.get(client.userId.toString());
+        ADMINS_ID.forEach((client) => {
+          const clientSocketId = clients.get(client.toString());
           if (clientSocketId) {
             socket.to(clientSocketId).emit("messages", messages);
           }
@@ -191,63 +164,35 @@ export default defineNitroPlugin(async (nitroApp: NitroApp) => {
       }
     });
 
-    // Обработка удаления сообщения
+    socket.on("new message with files", async (data) => {
+      try {
+        let messages = await getMessages(data.ticketId)
+        socket.emit("messages", messages)
+        socket.to(clients.get(data.creatorId.toString())).emit("messages", messages)
+        ADMINS_ID.forEach((client) => {
+          const clientSocketId = clients.get(client.toString());
+          if (clientSocketId) {
+            socket.to(clientSocketId).emit("messages", messages);
+          }
+        });
+      } catch (err) {
+        console.log(err);
+        
+      }
+    })
+
     socket.on("delete message", async (data) => {
       try {
         await Message.deleteOne({ _id: data.messageId });
         const messages = await getMessages(
-          data.userId1,
-          data.userId2,
-          data.type
-        );
-
-        const chat = await getChat(data.chatId);
-        if (chat) {
-          chat.members.forEach((client) => {
-            const clientSocketId = clients.get(client.userId.toString());
-            if (clientSocketId) {
-              socket.to(clientSocketId).emit("messages", messages);
-            }
-          });
-        }
+          data.ticketId,
+        )
+        socket.emit("messages", messages)
       } catch (error) {
         console.error("Delete message error:", error);
       }
     });
 
-    // Создание группового чата
-    socket.on("create group", async (data) => {
-      try {
-        const members = data.members.map((userId) => ({
-          userId: new mongoose.Types.ObjectId(userId),
-          role: userId === data.creatorId ? "creator" : "member",
-        }));
-
-        const group = new Chat({
-          type: "group",
-          title: data.title,
-          members,
-          creatorId: data.creatorId,
-        });
-
-        await group.save();
-
-        // Обновляем список чатов для всех участников
-        await Promise.all(
-          data.members.map(async (id) => {
-            const clientSocketId = clients.get(id);
-            if (clientSocketId) {
-              const chats = await getChats(id);
-              socket.to(clientSocketId).emit("chats", chats);
-            }
-          })
-        );
-      } catch (error) {
-        console.error("Create group error:", error);
-      }
-    });
-
-    // Обработка отключения
     socket.on("disconnect", () => {
       for (const [userId, socketId] of clients.entries()) {
         if (socketId === socket.id) {
@@ -257,6 +202,55 @@ export default defineNitroPlugin(async (nitroApp: NitroApp) => {
         }
       }
     });
+
+    socket.on("change status ticket", async (data) => {
+      try {
+        let ticket = await getTicket(data.ticketId)
+        if (ticket) {
+          ticket.status = data.status
+          await ticket.save()
+        }
+        socket.emit('ticket', ticket)
+        let tickets = await getTickets()
+        socket.emit('tickets', tickets)
+        socket.to(clients.get(ticket?.creatorId.toString())).emit("tickets", tickets)
+        socket.to(clients.get(ticket?.creatorId.toString())).emit("ticket", ticket)
+        ADMINS_ID.forEach((client) => {
+          const clientSocketId = clients.get(client.toString());
+          if (clientSocketId) {
+            socket.to(clientSocketId).emit("tickets", tickets);
+            socket.to(clientSocketId).emit("ticket", ticket);
+          }
+        });
+        
+      } catch (error) {
+        console.error("Delete message error:", error);
+      }
+    });
+
+    socket.on("new ticket", async (data) => {
+      try {
+        const ticket = new Ticket({
+          title: data.title,
+          description: data.description,
+          creatorId: data.creatorId,
+          status: 'open'
+        });
+        await ticket.save();
+        let tickets = await getTickets(data.creatorId)
+        socket.emit('tickets', tickets)
+        tickets = await getTickets()
+        ADMINS_ID.forEach((client) => {
+          const clientSocketId = clients.get(client.toString());
+          if (clientSocketId) {
+            socket.to(clientSocketId).emit("tickets", tickets);
+          }
+        });
+      } catch (err) {
+        console.log(err);
+        
+      }
+    })
   });
 
   nitroApp.router.use(
@@ -268,9 +262,7 @@ export default defineNitroPlugin(async (nitroApp: NitroApp) => {
       },
       websocket: {
         open(peer) {
-          // @ts-expect-error private method and property
           engine.prepare(peer._internal.nodeReq);
-          // @ts-expect-error private method and property
           engine.onWebSocket(
             peer._internal.nodeReq,
             peer._internal.nodeReq.socket,

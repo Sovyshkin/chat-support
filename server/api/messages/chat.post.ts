@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 
 export default defineEventHandler(async (event) => {
   try {
-    await mongoose.connect("mongodb://localhost:27017/Auth");
+    await mongoose.connect("mongodb://localhost:27017/chatSupport");
     let { sender, receiver } = await readBody(event);
     const messages = await Message.find({
       $or: [
