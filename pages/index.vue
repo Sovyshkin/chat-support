@@ -295,7 +295,7 @@ watch(
             @click="toggleHeader"
           >
             <img
-              src="../assets/chevron-down.svg"
+              src="../assets/chevron-down.png"
               class="expand-icon"
               alt="expand"
             />
