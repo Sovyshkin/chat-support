@@ -118,8 +118,8 @@ export const useTicketStore = defineStore(
         console.log(user.value);
         
 
-        socket.value = io("http://localhost:3000", {
-          // http://37.1.215.252 http://localhost:3000
+        socket.value = io("https://support.saluence.net", {
+          // https://support.saluence.net http://localhost:3000
           path: "/socket.io/",
           transports: ["websocket"],
         });

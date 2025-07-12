@@ -20,5 +20,15 @@ export default defineNuxtConfig({
         }
       }
     }
-  }
+  },
+  vite: {
+    server: {
+      host: '0.0.0.0',
+      allowedHosts: [
+        'support.saluence.net', 
+        'www.support.saluence.net',
+        'localhost',
+      ],
+    },
+  },
 })
