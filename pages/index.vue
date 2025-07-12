@@ -225,10 +225,18 @@ const toggleHeader = () => {
   isHeaderExpanded.value = !isHeaderExpanded.value;
 };
 
+const adjustTextareaHeight = (el) => {
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+};
+
 onMounted(async () => {
   await getDataIframe();
   document.addEventListener("click", hideContextMenu);
-  console.log(ticketStore.messages);
+  const textarea = document.querySelector('.group-item');
+  if (textarea) {
+    textarea.addEventListener('input', () => adjustTextareaHeight(textarea));
+  }
   nextTick(() => {
     scrollToBottom();
     setTimeout(scrollToBottom, 300);
@@ -553,13 +561,16 @@ watch(
               multiple
               style="display: none"
             />
-            <input
-              type="text"
+            <textarea
               class="group-item"
               v-model="ticketStore.content"
-              @keydown.enter="handleEnter"
+              @keydown.enter.exact.prevent="handleEnter"
+              @keydown.enter.shift.exact.prevent="ticketStore.content += '\n'"
+              autocomplete="off"
               placeholder="Start writing..."
-            />
+              rows="1"
+              style="resize: none"
+            ></textarea>
             <img
               class="send"
               src="../assets/send.svg"
@@ -674,6 +685,7 @@ label {
 }
 
 .message {
+  white-space: pre-wrap;
   max-width: 600px;
   width: fit-content;
   background-color: #e6eefe;
@@ -686,10 +698,13 @@ label {
 }
 
 .group-item {
-  line-height: 22px;
-  font-size: 14px;
+  white-space: pre-wrap;
+  overflow-y: hidden;
+  min-height: 44px;
+  max-height: 200px;
+  line-height: 1.5;
+  padding: 10px;
   width: 100%;
-  outline: none;
 }
 
 .wrap-send {

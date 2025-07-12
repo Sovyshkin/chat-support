@@ -1,8 +1,0 @@
-<template>
-    <iframe
-      src="http://localhost:3001?userId=2&name=vasya&avatar=https:\/\/img.ser5.ru\/avatars\/3_vasya.webp"
-      id="chat-iframe"
-      class="chat-iframe"
-      style="width: 100%; height: 100vh"
-    ></iframe>
-  </template>

@@ -115,8 +115,8 @@ export const useTicketStore = defineStore(
     const connect = () => {
       if (process.client) {
         userID.value = user.value._id;
-        console.log(user.value);
-        
+        let ticketLocal = localStorage.getItem("ticket")
+        selectedTicket.value = ticketLocal ? JSON.parse(ticketLocal) : {};
 
         socket.value = io("https://support.saluence.net", {
           // https://support.saluence.net http://localhost:3000
@@ -159,6 +159,7 @@ export const useTicketStore = defineStore(
         showTickets.value = false;
         showTicketsPred.value = false;
         userID.value = user.value._id;
+        localStorage.setItem("ticket", JSON.stringify(selectedTicket.value))
         messages.value = await $fetch(`/api/tickets/messages`, {
           method: "POST",
           body: {
