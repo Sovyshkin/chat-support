@@ -193,16 +193,6 @@ export default defineNitroPlugin(async (nitroApp: NitroApp) => {
       }
     });
 
-    socket.on("disconnect", () => {
-      for (const [userId, socketId] of clients.entries()) {
-        if (socketId === socket.id) {
-          clients.delete(userId);
-          io.emit("online", Array.from(clients.keys()));
-          break;
-        }
-      }
-    });
-
     socket.on("change status ticket", async (data) => {
       try {
         let ticket = await getTicket(data.ticketId)
@@ -237,6 +227,7 @@ export default defineNitroPlugin(async (nitroApp: NitroApp) => {
           status: 'open'
         });
         await ticket.save();
+        console.log("новый тикет", ticket);
         let tickets = await getTickets(data.creatorId)
         socket.emit('tickets', tickets)
         tickets = await getTickets()
@@ -251,6 +242,16 @@ export default defineNitroPlugin(async (nitroApp: NitroApp) => {
         
       }
     })
+
+    socket.on("disconnect", () => {
+      for (const [userId, socketId] of clients.entries()) {
+        if (socketId === socket.id) {
+          clients.delete(userId);
+          io.emit("online", Array.from(clients.keys()));
+          break;
+        }
+      }
+    });
   });
 
   nitroApp.router.use(
