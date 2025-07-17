@@ -188,6 +188,13 @@ export default defineNitroPlugin(async (nitroApp: NitroApp) => {
           data.ticketId,
         )
         socket.emit("messages", messages)
+        socket.to(clients.get(ticket?.creatorId.toString())).emit("messages", messages)
+        ADMINS_ID.forEach((client) => {
+          const clientSocketId = clients.get(client.toString());
+          if (clientSocketId) {
+            socket.to(clientSocketId).emit("messages", messages);
+          }
+        });
       } catch (error) {
         console.error("Delete message error:", error);
       }
