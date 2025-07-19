@@ -215,7 +215,19 @@ export const useTicketStore = defineStore(
       }
     };
 
+    const saveContent = () => {
+      try {
+        if (content.value) {
+          sessionStorage.setItem('content', content.value);
+        }
+      } catch (err) {
+        console.log(err);
+        
+      }
+    }
+
     return {
+      saveContent,
       createTicket,
       user,
       showTickets,

@@ -355,8 +355,7 @@ watch(
                     {{ message.replyTo.senderName }}
                   </span>
                 </div>
-                <div class="reply-text">
-                  {{ message.replyTo.text }}
+                <div class="reply-text" v-html="message.replyTo.text">
                 </div>
               </div>
               <div
@@ -449,6 +448,7 @@ watch(
               <div
                 class="message"
                 v-html="message.text"
+                v-if="message.text"
                 :class="{ userMessage: message.senderId == ticketStore.userID }"
               ></div>
               <div class="avatar">
@@ -566,6 +566,7 @@ watch(
               v-model="ticketStore.content"
               @keydown.enter.exact.prevent="handleEnter"
               @keydown.enter.shift.exact.prevent="ticketStore.content += '\n'"
+              @blur="chatStore.saveContent"
               autocomplete="off"
               placeholder="Start writing..."
               rows="1"
@@ -705,6 +706,7 @@ label {
   line-height: 1.5;
   padding: 10px;
   width: 100%;
+  outline: none;
 }
 
 .wrap-send {
