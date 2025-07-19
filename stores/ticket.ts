@@ -118,8 +118,8 @@ export const useTicketStore = defineStore(
         let ticketLocal = localStorage.getItem("ticket")
         selectedTicket.value = ticketLocal ? JSON.parse(ticketLocal) : {};
 
-        socket.value = io("https://support.saluence.net", {
-          // https://support.saluence.net http://localhost:3000
+        socket.value = io("https://chat.conneto.com", {
+          // https://chat.conneto.com http://localhost:3000
           path: "/socket.io/",
           transports: ["websocket"],
         });
